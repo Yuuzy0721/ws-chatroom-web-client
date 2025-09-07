@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Yuuzy的神秘聊天室-b0.0.4</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+            .version {
+                text-decoration: none;
+                color: black;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: Arial, Helvetica, sans-serif;
+                background: #f7f7f7;
+            }
+
+            .title {
+                text-align: center;
+                margin-top: 20px;
+            }
+
+            .Control {
+                max-width: 500px;
+                margin: 0 auto 20px auto;
+                padding: 10px;
+                background: #fff;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            }
+
+            .Control input[type="text"],
+            .Control textarea {
+                width: 100%;
+                box-sizing: border-box;
+                margin-bottom: 8px;
+                padding: 8px;
+                font-size: 1rem;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+
+            .Control button {
+                margin: 4px 2px;
+                padding: 8px 16px;
+                font-size: 1rem;
+                border: none;
+                border-radius: 4px;
+                background: #1976d2;
+                color: #fff;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .Control button:disabled {
+                background: #aaa;
+                cursor: not-allowed;
+            }
+
+            .ChatBox {
+                border: solid 2px #1976d2;
+                background: #fff;
+                width: 100%;
+                max-width: 500px;
+                margin: 0 auto 20px auto;
+                height: 45vh;
+                min-height: 200px;
+                word-wrap: break-word;
+                overflow: auto;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            }
+
+            @media (max-width: 600px) {
+                .title {
+                    font-size: 1.1rem;
+                    margin-top: 10px;
+                }
+                .Control {
+                    max-width: 98vw;
+                    padding: 6px;
+                }
+                .ChatBox {
+                    max-width: 98vw;
+                    height: 35vh;
+                    min-height: 120px;
+                }
+                .Control input[type="text"],
+                .Control textarea {
+                    font-size: 0.95rem;
+                    padding: 6px;
+                }
+                .Control button {
+                    font-size: 0.95rem;
+                    padding: 6px 12px;
+                }
+            }
+
+            @media (max-width: 400px) {
+                .title {
+                    font-size: 0.95rem;
+                }
+                .Control {
+                    padding: 2px;
+                }
+                .ChatBox {
+                    height: 25vh;
+                    min-height: 80px;
+                }
+            }
+        </style>
+        <script>
+            window.onbeforeunload = function() {
+                disconnect();
+                sessionStorage.clear();
+            }
+
+            function ciallo() {
+                const audio = new Audio('asstes/ciallo.m4a');
+                audio.play();
+            }
+        </script>
+    </head>
+    <body>
+        <div class="title">
+            <h1>Yuuzy的神秘聊天室<span style="font-size: 12px;" onclick="ciallo()">b0.0.4</span></h1>
+            <p><span style="font-size: xx-small;"><s>为什么居中不了QAQ</s> <s>md老子不干了</s> AI神力!</span></p>
+        </div>
+
+        <!-- 控件 -->
+        <div class="Control">
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="text" id="name" placeholder="昵称" style="flex:1; min-width:0;" />
+                <button id="setName" onclick="setName()">设置昵称</button>
+            </div>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <input type="text" id="ip" placeholder="服务器IP地址 例: ws://127.0.0.1:11450" style="flex:1; min-width:0;" />
+                <button id="connect" onclick="connect()">连接</button>
+                <button id="disconnect" onclick="disconnect()" disabled="true">断开连接</button>
+            </div>
+            <div class="input-row">
+                <textarea id="msg" placeholder="输入消息"></textarea>
+                <button id="send" onclick="send()">发送</button>
+                <input type="file" id="imgInput" accept="image/*" style="display:none" />
+                <button id="chooseImg" onclick="document.getElementById('imgInput').click()">选择图片</button>
+                <button id="sendImg" onclick="sendImg()">发送图片</button>
+            </div>
+            <div id="imgPreview" style="margin-bottom:8px;"></div>
+            <hr/>
+        </div>
+        <div class="ChatBox">
+        </div>
+        <script>
+            function showText(msg, user) {
+                const chatBox = document.querySelector(".ChatBox");
+                const msgDiv = document.createElement("div");
+                msgDiv.className = "chat-msg";
+                // 名字高亮，与图片消息一致
+                const nameSpan = document.createElement("span");
+                nameSpan.className = "chat-name";
+                nameSpan.textContent = (user ? user : "") + ': ';
+                msgDiv.appendChild(nameSpan);
+                const textSpan = document.createElement("span");
+                textSpan.className = "chat-text";
+                textSpan.textContent = msg;
+                msgDiv.appendChild(textSpan);
+                chatBox.appendChild(msgDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            function showImg(img, user) {
+                const chatBox = document.querySelector(".ChatBox");
+                const msgDiv = document.createElement("div");
+                msgDiv.className = "chat-msg";
+                if (user) {
+                    const nameSpan = document.createElement("span");
+                    nameSpan.className = "chat-name";
+                    nameSpan.textContent = user + ': ';
+                    msgDiv.appendChild(nameSpan);
+                }
+                const imgWrap = document.createElement("span");
+                imgWrap.className = "chat-img-wrap";
+                const image = document.createElement("img");
+                image.src = img;
+                image.className = "chat-img";
+                image.title = "双击放大";
+                image.ondblclick = function() { showImgModal(img); };
+                imgWrap.appendChild(image);
+                msgDiv.appendChild(imgWrap);
+                chatBox.appendChild(msgDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+
+            // 图片弹窗放大查看
+            function showImgModal(imgSrc) {
+                let modal = document.getElementById('imgModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'imgModal';
+                    modal.style.position = 'fixed';
+                    modal.style.top = '0';
+                    modal.style.left = '0';
+                    modal.style.width = '100vw';
+                    modal.style.height = '100vh';
+                    modal.style.background = 'rgba(0,0,0,0.7)';
+                    modal.style.display = 'flex';
+                    modal.style.alignItems = 'center';
+                    modal.style.justifyContent = 'center';
+                    modal.style.zIndex = '9999';
+                    modal.onclick = function(e) {
+                        if (e.target === modal) modal.remove();
+                    };
+                    document.body.appendChild(modal);
+                } else {
+                    modal.innerHTML = '';
+                    modal.style.display = 'flex';
+                }
+                const img = document.createElement('img');
+                img.src = imgSrc;
+                img.style.maxWidth = '90vw';
+                img.style.maxHeight = '90vh';
+                img.style.borderRadius = '8px';
+                img.style.boxShadow = '0 4px 24px #222';
+                img.style.background = '#fff';
+                modal.appendChild(img);
+            }
+
+            let userName;
+            let serverIP;
+            let ws;
+
+            function setName() {
+                userName = document.getElementById("name").value;
+                if (userName === "") {
+                    alert("昵称不能为空");
+                    return;
+                }
+                sessionStorage.setItem("name", userName);
+                alert("昵称设置成功");
+                document.getElementById("name").disabled = true;
+                document.getElementById("setName").disabled = true;
+            }
+
+            function connect() {
+                serverIP = document.getElementById("ip").value;
+                if (serverIP === "") {
+                    alert("服务器IP不能为空");
+                    return;
+                }
+                if (!userName) {
+                    userName = sessionStorage.getItem("name");
+                    if (!userName) {
+                        alert("请先设置昵称");
+                        return;
+                    }
+                }
+
+                ws = new WebSocket(serverIP);
+                ws.onopen = function() {
+                    console.log("连接成功");
+                    showText("连接成功", "系统");
+                    ws.send(JSON.stringify({ type: "connected", data: { userName: userName } }));
+                    document.getElementById("connect").disabled = true;
+                    document.getElementById("ip").disabled = true;
+                    document.getElementById("disconnect").disabled = false;
+                }
+
+                ws.onmessage = function(event) {
+                    const message = JSON.parse(event.data);
+                    if (message.type === "message-text") {
+                        showText(message.data.message, message.data.userName);
+                    }
+                    if (message.type === "message-img") {
+                        showImg(message.data.image, message.data.userName);
+                    }
+                }
+
+                ws.onclose = function() {
+                    console.log("连接已关闭");
+                    showText("连接已关闭", "系统");
+                    document.getElementById("connect").disabled = false;
+                    document.getElementById("ip").disabled = false;
+                    document.getElementById("disconnect").disabled = true;
+                }
+
+                ws.onerror = function(error) {
+                    console.error("连接错误:", error);
+                    showText("连接错误", "系统");
+                    document.getElementById("connect").disabled = false;
+                    document.getElementById("ip").disabled = false;
+                    document.getElementById("disconnect").disabled = true;
+                }
+            }
+
+            function disconnect() {
+                if (ws) {
+                    ws.send(JSON.stringify({ type: "disconnected", data: { userName: userName } }));
+                    setTimeout(() => ws.close(), 200);
+                }
+            }
+
+            function send() {
+                const msgInput = document.getElementById("msg");
+                const message = msgInput.value;
+                if (message === "") {
+                    alert("消息不能为空");
+                    return;
+                }
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "message-text", data: { userName: userName, message: message } }));
+                    msgInput.value = "";
+                } else {
+                    alert("未连接到服务器");
+                }
+            }
+
+            // 图片选择与预览
+            const imgInput = document.getElementById('imgInput');
+            const imgPreview = document.getElementById('imgPreview');
+            let selectedImgData = null;
+
+            imgInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        selectedImgData = e.target.result;
+                        imgPreview.innerHTML = `<img src="${selectedImgData}" alt="预览" style="max-width:100%;max-height:120px;border-radius:4px;box-shadow:0 1px 4px #ccc;" />`;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    selectedImgData = null;
+                    imgPreview.innerHTML = '';
+                }
+            });
+
+            function sendImg() {
+                if (!selectedImgData) {
+                    alert('请先选择图片');
+                    return;
+                }
+                ws.send(JSON.stringify({ type: "message-img", data: { userName: userName, image: selectedImgData } }));
+                // 发送后清除预览和数据
+                selectedImgData = null;
+                imgPreview.innerHTML = '';
+            }
+        </script>
+        <style>
+            .input-row {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 8px;
+                align-items: flex-start;
+                flex-wrap: nowrap;
+            }
+            .input-row textarea {
+                flex:2;
+                min-width:80px;
+                height:50px;
+                resize: none;
+                margin-bottom: 0;
+            }
+            .input-row button {
+                flex: 0 1 auto;
+                min-width: 60px;
+                padding: 6px 8px;
+                font-size: 0.95rem;
+                margin-bottom: 0;
+                white-space: nowrap;
+            }
+            @media (max-width: 600px) {
+                .input-row {
+                    gap: 4px;
+                }
+                .input-row textarea {
+                    font-size: 0.92rem;
+                    padding: 4px;
+                }
+                .input-row button {
+                    font-size: 0.9rem;
+                    padding: 4px 6px;
+                    min-width: 48px;
+                }
+            }
+            /* 聊天内容美化 */
+            .chat-msg {
+                display: flex;
+                align-items: flex-start;
+                margin: 8px 0;
+                padding: 6px 10px;
+                border-radius: 6px;
+                background: #f2f6fc;
+                box-shadow: 0 1px 4px rgba(25,118,210,0.04);
+                word-break: break-all;
+            }
+            .chat-name {
+                font-weight: bold;
+                color: #1976d2;
+                margin-right: 4px;
+                white-space: nowrap;
+            }
+            .chat-text {
+                color: #333;
+                font-size: 14px;
+            }
+            .chat-img-wrap {
+                margin-left: 4px;
+                display: flex;
+                align-items: center;
+            }
+            .chat-img {
+                max-width: 120px;
+                max-height: 120px;
+                border-radius: 6px;
+                box-shadow: 0 2px 8px #bbb;
+                border: 2px solid #e3eaf2;
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .chat-img:hover {
+                transform: scale(1.08);
+                box-shadow: 0 4px 16px #1976d2;
+            }
+            /* 图片弹窗 */
+            #imgModal img {
+                animation: imgPop 0.2s;
+            }
+            @keyframes imgPop {
+                0% { transform: scale(0.7); opacity: 0.2; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+        </style>
+    </body>
+</html>
